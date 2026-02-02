@@ -1,11 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 
-type GameState = "idle" | "playing" | "ended";
+type GameState = "idle" | "awaiting_theme" | "playing" | "ended";
 
 export function useStopGame() {
   const [gameState, setGameState] = useState<GameState>("idle");
   const [timeLeft, setTimeLeft] = useState(20);
   const [activeLetter, setActiveLetter] = useState<string | null>(null);
+  const [selectedLetter, setSelectedLetter] = useState<string | null>(null);
+  const [disabledLetters, setDisabledLetters] = useState<Set<string>>(new Set());
+  const [theme, setTheme] = useState<string>("");
   const intervalRef = useRef<number | null>(null);
 
   const clearTimer = useCallback(() => {
@@ -15,9 +18,16 @@ export function useStopGame() {
     }
   }, []);
 
-  const startGame = useCallback(() => {
+  const requestTheme = useCallback(() => {
+    setGameState("awaiting_theme");
+  }, []);
+
+  const startGame = useCallback((roundTheme: string) => {
     clearTimer();
     setTimeLeft(20);
+    setTheme(roundTheme);
+    setDisabledLetters(new Set());
+    setSelectedLetter(null);
     setGameState("playing");
 
     intervalRef.current = window.setInterval(() => {
@@ -36,10 +46,19 @@ export function useStopGame() {
     clearTimer();
     setGameState("idle");
     setTimeLeft(20);
+    setTheme("");
+    setDisabledLetters(new Set());
+    setSelectedLetter(null);
   }, [clearTimer]);
 
   const resetTimer = useCallback(() => {
     if (gameState === "playing") {
+      // Disable the currently selected letter when resetting
+      if (selectedLetter) {
+        setDisabledLetters((prev) => new Set([...prev, selectedLetter]));
+        setSelectedLetter(null);
+      }
+      
       clearTimer();
       setTimeLeft(20);
 
@@ -54,11 +73,18 @@ export function useStopGame() {
         });
       }, 1000);
     }
-  }, [gameState, clearTimer]);
+  }, [gameState, clearTimer, selectedLetter]);
 
   const pressLetter = useCallback((letter: string) => {
-    setActiveLetter(letter.toUpperCase());
+    const upperLetter = letter.toUpperCase();
+    if (disabledLetters.has(upperLetter)) return;
+    
+    setActiveLetter(upperLetter);
+    setSelectedLetter(upperLetter);
     setTimeout(() => setActiveLetter(null), 200);
+  }, [disabledLetters]);
+  const cancelThemeDialog = useCallback(() => {
+    setGameState("idle");
   }, []);
 
   // Keyboard event handling
@@ -69,13 +95,17 @@ export function useStopGame() {
       if (e.code === "Space") {
         e.preventDefault();
         if (gameState === "idle" || gameState === "ended") {
-          startGame();
+          requestTheme();
         } else if (gameState === "playing") {
           resetTimer();
         }
       } else if (e.key === "Escape") {
         e.preventDefault();
-        stopGame();
+        if (gameState === "awaiting_theme") {
+          cancelThemeDialog();
+        } else {
+          stopGame();
+        }
       } else if (/^[A-Z]$/.test(key) && gameState === "playing") {
         pressLetter(key);
       }
@@ -83,7 +113,7 @@ export function useStopGame() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [gameState, startGame, stopGame, resetTimer, pressLetter]);
+  }, [gameState, requestTheme, startGame, stopGame, resetTimer, pressLetter, cancelThemeDialog]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -94,9 +124,14 @@ export function useStopGame() {
     gameState,
     timeLeft,
     activeLetter,
+    selectedLetter,
+    disabledLetters,
+    theme,
+    requestTheme,
     startGame,
     stopGame,
     resetTimer,
     pressLetter,
+    cancelThemeDialog,
   };
 }
