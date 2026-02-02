@@ -6,6 +6,8 @@ const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
 interface DiscProps {
   activeLetter: string | null;
+  selectedLetter: string | null;
+  disabledLetters: Set<string>;
   isPlaying: boolean;
   onCenterClick: () => void;
   onLetterClick: (letter: string) => void;
@@ -13,15 +15,17 @@ interface DiscProps {
 
 export function Disc({
   activeLetter,
+  selectedLetter,
+  disabledLetters,
   isPlaying,
   onCenterClick,
   onLetterClick,
 }: DiscProps) {
   const isMobile = useIsMobile();
   
-  // Adjust radius based on screen size
-  const radius = isMobile ? 130 : 180;
-  const discSize = isMobile ? 320 : 420;
+  // Increased radius for better spacing between letters
+  const radius = isMobile ? 145 : 200;
+  const discSize = isMobile ? 360 : 480;
 
   return (
     <div
@@ -34,12 +38,12 @@ export function Disc({
         style={{
           background: `radial-gradient(circle, 
             hsl(var(--stop-blue)) 0%, 
-            hsl(var(--stop-blue)) 40%, 
-            hsl(var(--stop-red-dark)) 40%, 
-            hsl(var(--stop-red)) 60%,
-            hsl(var(--stop-blue-dark)) 60%,
-            hsl(var(--stop-blue)) 80%,
-            hsl(var(--stop-red-dark)) 80%,
+            hsl(var(--stop-blue)) 35%, 
+            hsl(var(--stop-red-dark)) 35%, 
+            hsl(var(--stop-red)) 55%,
+            hsl(var(--stop-blue-dark)) 55%,
+            hsl(var(--stop-blue)) 75%,
+            hsl(var(--stop-red-dark)) 75%,
             hsl(var(--stop-red)) 100%
           )`,
         }}
@@ -55,6 +59,8 @@ export function Disc({
             angle={angle}
             radius={radius}
             isActive={activeLetter === letter}
+            isSelected={selectedLetter === letter}
+            isDisabled={disabledLetters.has(letter)}
             onClick={() => onLetterClick(letter)}
           />
         );
