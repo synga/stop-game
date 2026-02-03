@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 
-type GameState = "idle" | "awaiting_theme" | "playing" | "ended";
+type GameState = "idle" | "awaiting_theme" | "playing" | "ended" | "continuing";
 
 export function useStopGame() {
   const [gameState, setGameState] = useState<GameState>("idle");
@@ -87,6 +87,42 @@ export function useStopGame() {
     setGameState("idle");
   }, []);
 
+  const continueGame = useCallback(() => {
+    if (gameState === "ended") {
+      // Disable the currently selected letter
+      if (selectedLetter) {
+        setDisabledLetters((prev) => new Set([...prev, selectedLetter]));
+        setSelectedLetter(null);
+      }
+      setGameState("continuing");
+    }
+  }, [gameState, selectedLetter]);
+
+  const selectLetterAndRestart = useCallback((letter: string) => {
+    const upperLetter = letter.toUpperCase();
+    if (disabledLetters.has(upperLetter)) return;
+    
+    setActiveLetter(upperLetter);
+    setSelectedLetter(upperLetter);
+    setTimeout(() => setActiveLetter(null), 200);
+    
+    // Start timer again
+    clearTimer();
+    setTimeLeft(20);
+    setGameState("playing");
+
+    intervalRef.current = window.setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearTimer();
+          setGameState("ended");
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }, [disabledLetters, clearTimer]);
+
   // Keyboard event handling
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -103,17 +139,19 @@ export function useStopGame() {
         e.preventDefault();
         if (gameState === "awaiting_theme") {
           cancelThemeDialog();
-        } else {
-          stopGame();
         }
-      } else if (/^[A-Z]$/.test(key) && gameState === "playing") {
-        pressLetter(key);
+      } else if (/^[A-Z]$/.test(key)) {
+        if (gameState === "playing") {
+          pressLetter(key);
+        } else if (gameState === "continuing") {
+          selectLetterAndRestart(key);
+        }
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [gameState, requestTheme, startGame, stopGame, resetTimer, pressLetter, cancelThemeDialog]);
+  }, [gameState, requestTheme, resetTimer, pressLetter, cancelThemeDialog, selectLetterAndRestart]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -133,5 +171,7 @@ export function useStopGame() {
     resetTimer,
     pressLetter,
     cancelThemeDialog,
+    continueGame,
+    selectLetterAndRestart,
   };
 }
