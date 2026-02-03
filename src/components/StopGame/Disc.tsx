@@ -24,8 +24,8 @@ export function Disc({
   const isMobile = useIsMobile();
   
   // Increased radius for better spacing between letters
-  const radius = isMobile ? 145 : 200;
-  const discSize = isMobile ? 360 : 480;
+  const radius = isMobile ? 155 : 220;
+  const discSize = isMobile ? 380 : 520;
 
   return (
     <div
